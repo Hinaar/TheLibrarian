@@ -12,9 +12,6 @@ namespace BookService
     {
         static void Main(string[] args)
         {
-       //     var manager = new BookManager();
-            //manager.BookByISBM(1);
-      //      Debug.WriteLine("keszo");
         }
     }
 }

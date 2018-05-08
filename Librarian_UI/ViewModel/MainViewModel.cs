@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Windows.System;
+using Windows.UI.Xaml.Controls;
 
 namespace Librarian_UI.ViewModel
 {
@@ -132,17 +133,23 @@ namespace Librarian_UI.ViewModel
             {
                 BookManager bm = new BookManager();
                 var result = await bm.SearchAsync(Filter, query, ResultPage);
+                Books.Clear();
                 if (result.docs.Count == 0)
                 {
                     //nincs eredmeny
                     IsLoading = false;
+                    ContentDialog noResulDialog = new ContentDialog
+                    {
+                        Title = "No results",
+                        Content = "Try a different expression",
+                        CloseButtonText = "Ok"
+                    };
+
+                    await noResulDialog.ShowAsync();
                     return;
                 }
-                Books.Clear();
                 foreach (var bookResult in result.docs.Where(d=>d.cover_i !=0))
-                {
                         Books.Add(new BookItemViewModel(bookResult));
-                }
             }
             SelectedBook = Books.First();
             IsLoading = false;
@@ -268,12 +275,13 @@ namespace Librarian_UI.ViewModel
         {
             Items = new ObservableCollection<CaroItem>();
             Books = new ObservableCollection<BookItemViewModel>();
-            loadDataAsync();
+            Filter = "title";
+            Task.Run(() => LoadDataAsync());
         }
 
 
 
-        private async void loadDataAsync()
+        private async Task LoadDataAsync()
         {
             IsHyperLink = false;
             LargeImageShown = false;

@@ -18,7 +18,7 @@ namespace BookService.Model
         public string description { get; set; }
         public string url { get; set; }
         public string notes { get; set; }
-        public int number_of_pages { get; set; }
+        public int? number_of_pages { get; set; }
         public Cover cover { get; set; }
         public Subject_Places[] subject_places { get; set; }
         public List<Subject> subjects { get; set; }
