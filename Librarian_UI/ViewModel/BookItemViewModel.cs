@@ -17,8 +17,6 @@ namespace Librarian_UI.ViewModel
 
         public Doc Doc { get; set; }
 
-        public CaroItem CaroItem { get; set; }
-
         public BookItemViewModel(Book book)
         {
             Book = book;
@@ -27,7 +25,6 @@ namespace Librarian_UI.ViewModel
         public BookItemViewModel(Doc doc)
         {
             Book = ConvertToBook(doc);
-            CaroItem = new CaroItem();
         }
 
         /// <summary>
@@ -58,7 +55,7 @@ namespace Librarian_UI.ViewModel
         public async Task LoadDetails()
         {
             BookManager bm = new BookManager();
-            var keytmp = Book.OLID_key;
+            string keytmp = Book.OLID_key;
             Book = await bm.BookByOLID(Book.OLID_key);
             Book.OLID_key = keytmp;
         }

@@ -1,11 +1,10 @@
 ﻿using BookService;
+using BookService.Model;
 using Librarian_UI.Commands;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Windows.System;
@@ -15,6 +14,7 @@ namespace Librarian_UI.ViewModel
 {
     public class MainViewModel : BaseViewModel
     {
+        #region Properties
         private string filter;
         public string Filter
         {
@@ -42,11 +42,6 @@ namespace Librarian_UI.ViewModel
             set { selectedBook = value; OnPropertyChanged(); }
         }
 
-
-        //TODO: remove items
-        private ObservableCollection<CaroItem> items;
-        public ObservableCollection<CaroItem> Items { get { return items; } set { items = value; OnPropertyChanged(); } }
-
         private bool largeImageShown;
 
         public bool LargeImageShown
@@ -60,6 +55,9 @@ namespace Librarian_UI.ViewModel
         }
 
         private bool isHyperLink;
+        /// <summary>
+        /// Property to help decide if the author points to a page
+        /// </summary>
         public bool IsHyperLink
         {
             get
@@ -67,7 +65,7 @@ namespace Librarian_UI.ViewModel
                 if (SelectedBook == null)
                     return false;
                 else
-                    return !String.IsNullOrEmpty(SelectedBook.Book.authors.First().url);
+                    return !String.IsNullOrEmpty(SelectedBook.Book?.authors?.FirstOrDefault().url);
             }
             set { isHyperLink = value; OnPropertyChanged(); }
         }
@@ -76,9 +74,12 @@ namespace Librarian_UI.ViewModel
 
         public bool IsLoading
         {
-            get { return isLoading;; }
+            get { return isLoading; ; }
             set { isLoading = value; OnPropertyChanged(); }
         }
+
+        #endregion
+        #region Commands
         private ICommand loadDetailsCommand;
 
         public ICommand LoadDetailsCommand
@@ -89,7 +90,7 @@ namespace Librarian_UI.ViewModel
                 {
                     loadDetailsCommand = new DelegateCommand
                         (
-                          x => LoadDetails(),
+                          async x => await LoadDetails(),
                           null
                         );
                 }
@@ -98,12 +99,16 @@ namespace Librarian_UI.ViewModel
             set { loadDetailsCommand = value; }
         }
 
+        /// <summary>
+        /// Loads the details of the book from the service into thier properties
+        /// </summary>
+        /// <returns>Runnable task</returns>
         private async Task LoadDetails()
         {
-                IsLoading = true;
-                await SelectedBook.LoadDetails();
-                IsHyperLink = IsHyperLink;
-                IsLoading = false;
+            IsLoading = true;
+            await SelectedBook.LoadDetails();
+            IsHyperLink = IsHyperLink;
+            IsLoading = false;
         }
 
         private ICommand searchCommand;
@@ -116,7 +121,7 @@ namespace Librarian_UI.ViewModel
                 {
                     searchCommand = new DelegateCommand
                         (
-                            x => Search(x),
+                            async x => await Search(x),
                             null
                         );
                 }
@@ -125,18 +130,47 @@ namespace Librarian_UI.ViewModel
             set { searchCommand = value; }
         }
 
+        /// <summary>
+        /// Searches the service for the occurence of the passed keyword in the choosen filter property of the book and loads the results
+        /// </summary>
+        /// <param name="x">Keyword through binding</param>
+        /// <returns></returns>
         private async Task Search(object x)
         {
-            IsLoading = true;
+            //to avoid casting exceptions we use as 
             string query = x as string;
+
+            //if the usre actually typed in a keyword
             if (!String.IsNullOrEmpty(query))
             {
+                IsLoading = true;
                 BookManager bm = new BookManager();
-                var result = await bm.SearchAsync(Filter, query, ResultPage);
-                Books.Clear();
-                if (result.docs.Count == 0)
+                SearchResult result = new SearchResult();
+
+                try
                 {
-                    //nincs eredmeny
+                    result = await bm.SearchAsync(Filter, query, ResultPage);
+                }
+                //Respond to the user in case of exception
+                catch (Exception)
+                {
+                    ContentDialog noResulDialog = new ContentDialog
+                    {
+                        Title = "Uups",
+                        Content = "Failed to reach the library. Check your internet connection or try again later",
+                        CloseButtonText = "Ok"
+                    };
+
+                    await noResulDialog.ShowAsync();
+                    IsLoading = false;
+                    return;
+                }
+
+                Books.Clear();
+                
+                //empty resultset
+                if (result.docs?.Count == 0)
+                {
                     IsLoading = false;
                     ContentDialog noResulDialog = new ContentDialog
                     {
@@ -148,11 +182,25 @@ namespace Librarian_UI.ViewModel
                     await noResulDialog.ShowAsync();
                     return;
                 }
-                foreach (var bookResult in result.docs.Where(d=>d.cover_i !=0))
-                        Books.Add(new BookItemViewModel(bookResult));
+                //show only books with cover image for more spectacular UI
+                foreach (var bookResult in result.docs.Where(d => d.cover_i != 0))
+                    Books.Add(new BookItemViewModel(bookResult));
+
+                SelectedBook = Books.FirstOrDefault();
+                IsLoading = false;
             }
-            SelectedBook = Books.First();
-            IsLoading = false;
+            else
+            {
+                ContentDialog noResulDialog = new ContentDialog
+                {
+                    Title = "No keyword",
+                    Content = "Try filling in the searchbox first",
+                    CloseButtonText = "Ok"
+                };
+
+                await noResulDialog.ShowAsync();
+                SelectedBook = null;
+            }
         }
 
         private ICommand showLargeImageCommand;
@@ -167,7 +215,7 @@ namespace Librarian_UI.ViewModel
                 {
                     showLargeImageCommand = new DelegateCommand
                         (
-                            x => ShowLargeImage(),
+                            async x => await ShowLargeImage(),
                             x => LargeImageExist()
                         );
                 }
@@ -179,15 +227,19 @@ namespace Librarian_UI.ViewModel
             }
         }
 
+        /// <summary>
+        /// Evaluates if our selected book has a larger image to show or not
+        /// </summary>
+        /// <returns></returns>
         private bool LargeImageExist()
         {
             return !string.IsNullOrEmpty(SelectedBook.Book.cover.large);
         }
 
         /// <summary>
-        /// Async method that changes the enlarged cover visibility
+        /// Flips the flag that turns the enlarged image visible
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Runnable task</returns>
         private async Task ShowLargeImage()
         {
             LargeImageShown = !LargeImageShown;
@@ -203,7 +255,7 @@ namespace Librarian_UI.ViewModel
                 {
                     filterChange = new DelegateCommand
                         (
-                            x => ChangeFilter(x),
+                            async x => await ChangeFilter(x),
                             null
                         );
                 }
@@ -212,6 +264,11 @@ namespace Librarian_UI.ViewModel
             set { filterChange = value; }
         }
 
+        /// <summary>
+        /// Sets the filter that the books are searched based on
+        /// </summary>
+        /// <param name="param">The new filter value</param>
+        /// <returns>Runnable task</returns>
         private async Task ChangeFilter(object param)
         {
             Filter = param as string;
@@ -227,8 +284,7 @@ namespace Librarian_UI.ViewModel
                 {
                     openAuthorPageCommand = new DelegateCommand
                         (
-                            x => OpenAuthorPageCommandMethod(),
-                            null
+                            async x => await OpenAuthorPageCommandMethod()
                         );
                 }
                 return openAuthorPageCommand;
@@ -236,9 +292,13 @@ namespace Librarian_UI.ViewModel
             set { openAuthorPageCommand = value; }
         }
 
+        /// <summary>
+        /// Starts a web browser opening the clicked authors page
+        /// </summary>
+        /// <returns>Runnable task</returns>
         private async Task OpenAuthorPageCommandMethod()
         {
-                await Launcher.LaunchUriAsync(new Uri(SelectedBook.Book.authors[0].url));
+            await Launcher.LaunchUriAsync(new Uri(SelectedBook.Book.authors[0].url));
         }
 
         private ICommand pagingCommand;
@@ -251,8 +311,8 @@ namespace Librarian_UI.ViewModel
                 {
                     pagingCommand = new DelegateCommand
                         (
-                        x => Paging(x),
-                        null //ide a canlogin
+                        async x => await Paging(x),
+                        null //canexcecute
                         );
                 }
                 return pagingCommand;
@@ -261,26 +321,34 @@ namespace Librarian_UI.ViewModel
             set { pagingCommand = value; }
         }
 
+        /// <summary>
+        /// Search the next/previous page of the results in a single method
+        /// </summary>
+        /// <param name="x">The direction of the paging {-1, 1}</param>
+        /// <returns>Runnable task</returns>
         private async Task Paging(object x)
         {
-            int direction = int.Parse((x as string)??"0");
+            //avoid negativ pages and stay at parse error
+            int direction = int.Parse((x as string) ?? "0");
             if (ResultPage + direction > 0)
             {
                 ResultPage += direction;
+                LargeImageShown = false;
                 await Search(Keyword);
             }
         }
-
+        #endregion
         public MainViewModel()
         {
-            Items = new ObservableCollection<CaroItem>();
             Books = new ObservableCollection<BookItemViewModel>();
             Filter = "title";
             Task.Run(() => LoadDataAsync());
         }
 
-
-
+        /// <summary>
+        /// Since async actions are permitted in constructors, this handles all Data loading
+        /// </summary>
+        /// <returns>Runnable task</returns>
         private async Task LoadDataAsync()
         {
             IsHyperLink = false;

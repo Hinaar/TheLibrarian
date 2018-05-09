@@ -155,9 +155,9 @@
                 <StackPanel Orientation="Horizontal" Padding="12">
                     <Grid Margin="0,0,8,0">
                         <Image Source="../../Assets/ToolkitLogo.png"  />
-                        <ProgressRing IsActive="True" Foreground="Blue" Height="70" Width="70" />
+                        <ProgressRing IsActive="True" Foreground="#FFFF00D8" Height="70" Width="70" BorderThickness="4" />
                     </Grid>
-                    <TextBlock Text="Take your time..." Foreground="Black" FontSize="30" VerticalAlignment="Center" />
+                    <TextBlock Text="Searching the library..." Foreground="Black" FontSize="30" VerticalAlignment="Center" />
                 </StackPanel>
 
             </Controls:Loading>
@@ -167,7 +167,7 @@
                               IsEnabled="{Binding SelectedBook, TargetNullValue=false}"/>
                 <AppBarButton Icon="Forward" Label="More result" Command="{Binding PagingCommand}" CommandParameter="1"
                               IsEnabled="{Binding SelectedBook, TargetNullValue=false}"/>
-                <AppBarButton Icon="Find" Label="Search" Command="{Binding LoadDetailsCommand}"
+                <AppBarButton Icon="Find" Label="Details" Command="{Binding LoadDetailsCommand}"
                               IsEnabled="{Binding SelectedBook, TargetNullValue=false}"/>
                 <AppBarButton Icon="Setting" Label="Search by" IsCompact="True">
                     <AppBarButton.Flyout>
